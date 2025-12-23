@@ -1218,12 +1218,140 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     
     function renderChoiceItem(listContainer, question, choice) {
-        const item = document.createElement('div'); item.className = 'choice-item';
-        const unassignedSelector = createUnassignedSelector(choice.fieldId);
-        item.innerHTML = `<input type="text" class="choice-name" placeholder="選択肢名" value="${choice.name}">`; item.prepend(unassignedSelector);
+        // --- 全体の枠 ---
+        const item = document.createElement('div');
+        item.className = 'choice-item';
+        
+        // 基本スタイル（縦積みコンテナ）
+        item.style.display = "flex";
+        item.style.flexDirection = "column"; 
+        item.style.gap = "0";
+        item.style.marginBottom = "10px"; 
+        item.style.padding = "10px";
+        item.style.border = "1px solid #ddd"; 
+        item.style.borderRadius = "4px";
+        item.style.backgroundColor = "#fff";
+
+        // =========================================================
+        // [上段] 3つの要素を横一列に並べる (マーク | 名前 | チェック)
+        // =========================================================
+        const mainRow = document.createElement('div');
+        mainRow.style.display = "flex";
+        mainRow.style.alignItems = "center"; // 上下中央揃え
+        mainRow.style.gap = "8px";           // 要素間の隙間
+        mainRow.style.width = "100%";
+
+        // 1. マーク選択 (幅35%程度)
+        const markSelector = createUnassignedSelector(choice.fieldId);
+        markSelector.style.flex = "0 0 35%"; // 幅固定
+        markSelector.style.minWidth = "0";   // 縮小許容
+        markSelector.title = "マークする場所を選択"; // ホバー時にヒント表示
+
+        // 2. 選択肢名入力 (残り幅を埋める)
+        const nameInput = document.createElement('input');
+        nameInput.type = "text";
+        nameInput.className = "choice-name";
+        nameInput.placeholder = "選択肢名";
+        nameInput.value = choice.name;
+        nameInput.style.flex = "1";          // 伸縮自在
+        nameInput.style.minWidth = "0";
+        nameInput.style.boxSizing = "border-box";
+        // 高さをセレクトボックスに合わせる(約38px)
+        nameInput.style.height = "38px"; 
+        nameInput.style.padding = "5px";
+
+        // 3. テキストチェック (幅自動)
+        const checkboxContainer = document.createElement('div');
+        checkboxContainer.style.display = "flex";
+        checkboxContainer.style.alignItems = "center";
+        checkboxContainer.style.whiteSpace = "nowrap"; // 折り返し禁止
+
+        const hasTextCheckbox = document.createElement('input');
+        hasTextCheckbox.type = "checkbox";
+        hasTextCheckbox.id = `check_${Date.now()}_${Math.random()}`; 
+        hasTextCheckbox.checked = choice.hasText || false;
+        hasTextCheckbox.style.margin = "0 4px 0 0"; // 右に少し隙間
+        hasTextCheckbox.style.cursor = "pointer";
+
+        const hasTextLabel = document.createElement('label');
+        hasTextLabel.htmlFor = hasTextCheckbox.id;
+        hasTextLabel.textContent = "記入枠"; // スペース節約のため短縮
+        hasTextLabel.style.cursor = "pointer";
+        hasTextLabel.style.fontSize = "0.85em";
+        hasTextLabel.style.userSelect = "none";
+        hasTextLabel.title = "テキスト入力を伴う場合はチェック";
+
+        checkboxContainer.appendChild(hasTextCheckbox);
+        checkboxContainer.appendChild(hasTextLabel);
+
+        // 上段に追加
+        mainRow.appendChild(markSelector);
+        mainRow.appendChild(nameInput);
+        mainRow.appendChild(checkboxContainer);
+
+        // =========================================================
+        // [下段] 記入用枠の選択 (チェック時のみ表示)
+        // =========================================================
+        const selectorRow = document.createElement('div');
+        selectorRow.style.display = choice.hasText ? "flex" : "none"; 
+        selectorRow.style.alignItems = "center";
+        selectorRow.style.marginTop = "8px";
+        selectorRow.style.padding = "5px";
+        selectorRow.style.backgroundColor = "#f9f9f9"; // 背景色を少し変えて区別
+        selectorRow.style.borderRadius = "4px";
+
+        const selectorLabel = document.createElement('div');
+        selectorLabel.textContent = "↳ 記入用枠:";
+        selectorLabel.style.fontSize = "0.8em";
+        selectorLabel.style.color = "#666";
+        selectorLabel.style.marginRight = "10px";
+        selectorLabel.style.whiteSpace = "nowrap";
+
+        const textSelector = createUnassignedSelector(choice.textFieldId);
+        textSelector.style.flex = "1"; // 幅いっぱい
+
+        selectorRow.appendChild(selectorLabel);
+        selectorRow.appendChild(textSelector);
+
+        // =========================================================
+        // イベントリスナー
+        // =========================================================
+        nameInput.addEventListener('input', (e) => { 
+            choice.name = e.target.value; 
+            updateValueInputForm(); 
+        });
+
+        markSelector.addEventListener('change', (e) => { 
+            const oldFieldId = choice.fieldId; 
+            choice.fieldId = e.target.value || null; 
+            updateAllUnassignedSelectors(oldFieldId); 
+            updateValueInputForm(); 
+        });
+
+        textSelector.addEventListener('change', (e) => {
+            const oldId = choice.textFieldId;
+            choice.textFieldId = e.target.value || null;
+            updateAllUnassignedSelectors(oldId); 
+            updateValueInputForm();
+        });
+
+        hasTextCheckbox.addEventListener('change', (e) => {
+            choice.hasText = e.target.checked;
+            selectorRow.style.display = choice.hasText ? "flex" : "none";
+            if (!choice.hasText) {
+                choice.textFieldId = null;
+                textSelector.value = "";
+            }
+            updateValueInputForm();
+        });
+
+        // =========================================================
+        // DOMへの追加
+        // =========================================================
+        item.appendChild(mainRow);
+        item.appendChild(selectorRow);
+
         listContainer.appendChild(item);
-        item.querySelector('.choice-name').addEventListener('input', (e) => { choice.name = e.target.value; updateValueInputForm(); });
-        unassignedSelector.addEventListener('change', (e) => { const oldFieldId = choice.fieldId; choice.fieldId = e.target.value || null; updateAllUnassignedSelectors(oldFieldId); updateValueInputForm(); });
     }
     
     function createUnassignedSelector(selectedFieldId) {
