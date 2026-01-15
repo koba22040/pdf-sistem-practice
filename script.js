@@ -70,6 +70,8 @@ document.addEventListener("DOMContentLoaded", () => {
     let hoveredFieldId = null;
     let selectedFieldIds = [];
     let isRendering = false;
+    let undoStack = []; // 履歴保存用
+    const MAX_HISTORY = 50; // 履歴の最大保存数（メモリ節約のため）
     
     // 配置サイズ記憶
     let lastSizes = {
@@ -87,6 +89,10 @@ document.addEventListener("DOMContentLoaded", () => {
     let snapGuideLines = []; 
     const SNAP_THRESHOLD = 5; 
     const SNAP_SEARCH_RANGE = 70; 
+    // 範囲選択用
+    let isSelecting = false;
+    let selectionStart = { x: 0, y: 0 };
+    let selectionRect = { x: 0, y: 0, width: 0, height: 0 };
 
     // ====================================================================
     // イベントリスナー
@@ -98,17 +104,58 @@ document.addEventListener("DOMContentLoaded", () => {
         if (file && file.type === "application/pdf") handlePDF(file);
     });
 
-    document.body.addEventListener("drop", e => {
+    // document.body.addEventListener("drop", e => {
+    //     e.preventDefault();
+    //     document.body.classList.remove("dragover");
+    //     const file = e.dataTransfer.files[0];
+    //     if (file && file.type === "application/pdf") {
+    //         handlePDF(file);
+    //     }
+    // });
+    // document.body.addEventListener("dragover", e => { e.preventDefault(); document.body.classList.add("dragover"); });
+    // document.body.addEventListener("dragleave", e => { e.preventDefault(); document.body.classList.remove("dragover"); });
+
+    // --- 既存のドラッグイベントを削除して、以下に置き換え ---
+
+    // ▼▼▼ 全画面ドラッグ＆ドロップ処理 (Phase 1) ▼▼▼
+    const dragOverlay = document.getElementById('drag-overlay');
+    let dragCounter = 0; // チラつき防止用
+
+    window.addEventListener('dragenter', (e) => {
         e.preventDefault();
-        document.body.classList.remove("dragover");
+        dragCounter++;
+        if (dragCounter === 1 && dragOverlay) {
+            dragOverlay.classList.add('active');
+        }
+    });
+
+    window.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dragCounter--;
+        if (dragCounter === 0 && dragOverlay) {
+            dragOverlay.classList.remove('active');
+        }
+    });
+
+    window.addEventListener('dragover', (e) => {
+        e.preventDefault();
+    });
+
+    window.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dragCounter = 0;
+        if (dragOverlay) dragOverlay.classList.remove('active');
+
+        // ファイル取得
         const file = e.dataTransfer.files[0];
         if (file && file.type === "application/pdf") {
             handlePDF(file);
+        } else {
+            // PDF以外の場合の警告（必要なら）
+            // alert("PDFファイルをドロップしてください。");
         }
     });
-    document.body.addEventListener("dragover", e => { e.preventDefault(); document.body.classList.add("dragover"); });
-    document.body.addEventListener("dragleave", e => { e.preventDefault(); document.body.classList.remove("dragover"); });
-
+    // ▲▲▲ 追加ここまで ▲▲▲
     // --- ツールバー ---
     toolbarTextBtn.addEventListener('click', () => startPlacingElement('text'));
     toolbarChoiceBtn.addEventListener('click', (event) => { event.stopPropagation(); choiceDropdown.classList.toggle('show'); });
@@ -180,42 +227,62 @@ document.addEventListener("DOMContentLoaded", () => {
             mouseDownPos = { x: e.clientX, y: e.clientY };
             const clickedFieldId = findClickedFieldId(mouseX, mouseY);
 
-            if (e.shiftKey) {
-                if (clickedFieldId) {
-                    const index = selectedFieldIds.indexOf(clickedFieldId);
-                    if (index > -1) { selectedFieldIds.splice(index, 1); } 
-                    else { selectedFieldIds.push(clickedFieldId); }
-                }
-            } else {
-                if (clickedFieldId) selectedFieldIds = [clickedFieldId]; 
-                else selectedFieldIds = []; 
-            }
-            selectedFieldId = selectedFieldIds.length === 1 ? selectedFieldIds[0] : null;
-
-            if (selectedFieldForPlacement) return;
-
+            // ① 選択中のフィールドのリサイズハンドルをクリックしたか？
             if (selectedFieldId) {
-                const pos = fieldPositions[selectedFieldId];
                 const handles = getHandlesForField(selectedFieldId);
                 for (const handleName in handles) {
                     if (Math.hypot(handles[handleName].x - mouseX, handles[handleName].y - mouseY) < resizeHandleSize) {
+                        saveStateToHistory(); // 履歴保存
                         isDragging = true; resizingField = selectedFieldId; resizingHandle = handleName;
                         canvas.style.cursor = getCursorForHandle(handleName);
                         drawCanvasWithBoxes(); return;
                     }
                 }
-                if (findClickedFieldId(mouseX, mouseY) === selectedFieldId) {
-                    isMoving = true; movingField = selectedFieldId;
-                    const scaleX = pdfPage.originalWidth / canvas.width;
-                    const scaleY = pdfPage.originalHeight / canvas.height;
-                    dragOffsetX = (mouseX * scaleX) - pos.x;
-                    dragOffsetY = (mouseY * scaleY) - pos.y;
-                    canvas.style.cursor = 'move';
-                    drawCanvasWithBoxes(); return;
+            }
+
+            // ② フィールド自体をクリックしたか？ (移動)
+            if (clickedFieldId) {
+                // ... (既存のクリック選択・移動処理) ...
+                // シフトキー処理などは既存のまま維持してください
+                if (e.shiftKey) {
+                   // ...
+                } else {
+                   if (!selectedFieldIds.includes(clickedFieldId)) {
+                        selectedFieldIds = [clickedFieldId];
+                   }
                 }
+                selectedFieldId = selectedFieldIds.length === 1 ? selectedFieldIds[0] : null;
+
+                saveStateToHistory(); // 履歴保存
+                isMoving = true; movingField = clickedFieldId; // ※複数移動に対応する場合はここを調整しますが、まずは単体or既存ロジックで
+                
+                // ドラッグ開始オフセット計算
+                // (複数選択移動に対応させるなら、movingFieldだけでなくselectedFieldIds全体を動かすロジックが必要ですが、今回は範囲選択の実装に集中します)
+                const pos = fieldPositions[clickedFieldId];
+                const scaleX = pdfPage.originalWidth / canvas.width;
+                const scaleY = pdfPage.originalHeight / canvas.height;
+                dragOffsetX = (mouseX * scaleX) - pos.x;
+                dragOffsetY = (mouseY * scaleY) - pos.y;
+                
+                canvas.style.cursor = 'move';
+                drawCanvasWithBoxes(); 
+                return;
+            }
+
+            // ★追加: ③ 何もない場所をクリックした場合 → 範囲選択開始
+            if (!clickedFieldId && !isDragging) {
+                isSelecting = true;
+                selectionStart = { x: mouseX, y: mouseY };
+                selectionRect = { x: mouseX, y: mouseY, width: 0, height: 0 };
+                
+                // Shiftキーが押されていないなら、既存の選択をクリアする
+                if (!e.shiftKey) {
+                    selectedFieldIds = [];
+                    selectedFieldId = null;
+                }
+                drawCanvasWithBoxes();
             }
         }
-        drawCanvasWithBoxes();
     });
 
     // --- キャンバス操作 (MouseMove) ---
@@ -228,7 +295,45 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         if (isMoving && movingField) handleMove(e);
         else if (isDragging && resizingField) handleResize();
-        else updateCursorStyle(currentMouseX, currentMouseY);
+        else if (isSelecting) {
+            // 矩形の計算
+            const width = currentMouseX - selectionStart.x;
+            const height = currentMouseY - selectionStart.y;
+            
+            // 負の値に対応するため、左上の座標(x,y)と絶対値の幅・高さを正規化
+            selectionRect = {
+                x: width > 0 ? selectionStart.x : currentMouseX,
+                y: height > 0 ? selectionStart.y : currentMouseY,
+                width: Math.abs(width),
+                height: Math.abs(height)
+            };
+
+            // 矩形内にあるフィールドを探して選択状態にする
+            const newSelection = [];
+            for (const id in fieldPositions) {
+                const pos = fieldPositions[id];
+                const canvasPos = getCanvasCoords(pos); // PDF座標をCanvas座標に変換
+
+                // 当たり判定 (AABB: Axis-Aligned Bounding Box)
+                if (
+                    selectionRect.x <= canvasPos.x && // 選択範囲の左端 <= 項目の左端
+                    selectionRect.x + selectionRect.width >= canvasPos.x + canvasPos.width && // 選択範囲の右端 >= 項目の右端
+                    selectionRect.y <= canvasPos.y && // 選択範囲の上端 <= 項目の上端
+                    selectionRect.y + selectionRect.height >= canvasPos.y + canvasPos.height // 選択範囲の下端 >= 項目の下端
+                ) {
+                    newSelection.push(id);
+                }
+            }
+            
+            // 既存の選択(Shift押下時用)と結合するか、置き換えるか
+            // 今回はシンプルに「ドラッグ中は範囲内のものだけを選択」とします
+            // (Shiftキー対応を厳密にするなら、mousedown時の選択状態を保存しておく必要がありますが、簡易版として以下で十分実用的です)
+            selectedFieldIds = newSelection;
+            selectedFieldId = null; // 複数選択中は単一選択IDはnullにしておくのが安全
+        } 
+        else {
+            updateCursorStyle(currentMouseX, currentMouseY);
+        }
         drawCanvasWithBoxes();
     });
 
@@ -240,6 +345,24 @@ document.addEventListener("DOMContentLoaded", () => {
                 lastSizes[pos.type] = { width: pos.width, height: pos.height, size: pos.size };
             }
         }
+        snapGuideLines = [];
+        drawCanvasWithBoxes();
+        isDragging = false; resizingField = null; resizingHandle = null;
+        isMoving = false; movingField = null;
+        if (isSelecting) {
+            isSelecting = false;
+            selectionRect = { x: 0, y: 0, width: 0, height: 0 };
+            
+            // 選択が1つだけなら selectedFieldId に入れる（プロパティ表示などのため）
+            if (selectedFieldIds.length === 1) {
+                selectedFieldId = selectedFieldIds[0];
+            }
+            
+            updateFloatingControls();
+            drawCanvasWithBoxes();
+            return;
+        }
+        
         snapGuideLines = [];
         drawCanvasWithBoxes();
         isDragging = false; resizingField = null; resizingHandle = null;
@@ -300,6 +423,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const pdfClickY = mouseY * (pdfPage.originalHeight / canvas.height);
             const pdfX = pdfClickX - (width / 2);
             const pdfY = pdfClickY - (height / 2);
+            saveStateToHistory();
             fieldPositions[fieldId] = { id: fieldId, type, label, value: '', x: pdfX, y: pdfY, width, height, size };
         
             selectedFieldForPlacement = null;
@@ -312,6 +436,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     
     canvas.addEventListener('dblclick', (e) => {
+        saveStateToHistory();
         if (currentMode !== 'placement' || groupingModeType) return;
         const rect = canvas.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
@@ -342,6 +467,28 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     window.addEventListener('keydown', (e) => {
+        // 入力フォーム操作中は除外
+        if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) {
+            return;
+        }
+        // --- Undo (Command + Z) ---
+        if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+            e.preventDefault();
+            undo(); // 戻る処理を実行
+            return;
+        }
+        // 複製 (Command + D)
+        if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
+            e.preventDefault(); // 「ブックマークに追加」を防ぐ
+
+            if (selectedFieldId) {
+                // duplicateField関数を呼び出す
+                // 引数で方向を指定します（'bottom':下, 'right':右, 'top':上, 'left':左）
+                // ここでは「下に複製」をデフォルトにしています
+                duplicateField('bottom'); 
+            }
+            return;
+        }
         if (groupingModeType) {
             if (e.key === 'Enter') { e.preventDefault(); finishGrouping(); }
             else if (e.key === 'Escape') cancelGroupingMode();
@@ -351,6 +498,7 @@ document.addEventListener("DOMContentLoaded", () => {
             e.preventDefault();
             if (selectedFieldIds.length > 0) {
                 if (confirm(`選択中の ${selectedFieldIds.length} 個の項目を削除しますか？`)) {
+                    saveStateToHistory(); //削除前に履歴保存
                     selectedFieldIds.forEach(id => { delete fieldPositions[id]; });
                     selectedFieldId = null;
                     selectedFieldIds = [];
@@ -379,31 +527,31 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // --- テンプレート保存 (JSON) ---
-    saveTemplateBtn.addEventListener("click", () => {
-        const templateName = prompt("テンプレート名を入力してください:", selectedFile ? selectedFile.name.replace('.pdf', '') : "");
-        if (!templateName) { alert("テンプレート名を入力してください。"); return; }
+    // saveTemplateBtn.addEventListener("click", () => {
+    //     const templateName = prompt("テンプレート名を入力してください:", selectedFile ? selectedFile.name.replace('.pdf', '') : "");
+    //     if (!templateName) { alert("テンプレート名を入力してください。"); return; }
     
-        const positionsToSave = JSON.parse(JSON.stringify(fieldPositions));
-        for (const id in positionsToSave) {
-            const pos = positionsToSave[id];
-            pos.x = Math.round(pos.x * 10) / 10;
-            pos.y = Math.round(pos.y * 10) / 10;
-            pos.width = Math.round(pos.width * 10) / 10;
-            pos.height = Math.round(pos.height * 10) / 10;
-            pos.size = Math.round(pos.size * 10) / 10;
-        }
+    //     const positionsToSave = JSON.parse(JSON.stringify(fieldPositions));
+    //     for (const id in positionsToSave) {
+    //         const pos = positionsToSave[id];
+    //         pos.x = Math.round(pos.x * 10) / 10;
+    //         pos.y = Math.round(pos.y * 10) / 10;
+    //         pos.width = Math.round(pos.width * 10) / 10;
+    //         pos.height = Math.round(pos.height * 10) / 10;
+    //         pos.size = Math.round(pos.size * 10) / 10;
+    //     }
     
-        const templateData = { name: templateName, questions, fieldPositions: positionsToSave };
-        const jsonStr = JSON.stringify(templateData, null, 2);
-        const blob = new Blob([jsonStr], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
+    //     const templateData = { name: templateName, questions, fieldPositions: positionsToSave };
+    //     const jsonStr = JSON.stringify(templateData, null, 2);
+    //     const blob = new Blob([jsonStr], { type: "application/json" });
+    //     const url = URL.createObjectURL(blob);
     
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `${templateName}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-    });
+    //     const a = document.createElement("a");
+    //     a.href = url;
+    //     a.download = `${templateName}.json`;
+    //     a.click();
+    //     URL.revokeObjectURL(url);
+    // });
 
     // --- テンプレート読込 ---
     const loadTemplateBtn = document.getElementById("loadTemplateBtn");
@@ -611,6 +759,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     saveGroupBtn.addEventListener('click', () => {
+        saveStateToHistory();
         const groupName = groupNameInput.value.trim();
         if (!groupName) { alert('グループ名を入力してください。'); return; }
 
@@ -687,6 +836,13 @@ document.addEventListener("DOMContentLoaded", () => {
     function handlePDF(fileOrBlob, fileName) {
         if (isRendering) return;
         isRendering = true;
+        //  画面切り替えロジック ▼▼▼
+        const startView = document.getElementById('start-view');
+        const editorView = document.getElementById('editor-view');
+        if (startView && editorView) {
+            startView.style.display = 'none';
+            editorView.style.display = 'block';
+        }
         selectedFile = fileOrBlob;
         fileNameElem.textContent = `選択されたファイル: ${fileName || fileOrBlob.name}`;
         statusElem.textContent = "PDFを読み込んでいます...";
@@ -720,6 +876,41 @@ document.addEventListener("DOMContentLoaded", () => {
         reader.readAsArrayBuffer(fileOrBlob);
     }
     
+
+    // 操作を行う「直前」に呼び出して、今の状態を保存する
+    function saveStateToHistory() {
+        // 現在の fieldPositions をディープコピーして保存
+        const state = JSON.stringify(fieldPositions);
+        undoStack.push(state);
+        
+        // 履歴が多すぎたら古いものを捨てる
+        if (undoStack.length > MAX_HISTORY) {
+            undoStack.shift();
+        }
+    }
+
+    // Ctrl+Z / Cmd+Z で呼び出される
+    function undo() {
+        if (undoStack.length === 0) {
+            console.log("これ以上戻れません");
+            return;
+        }
+
+        // 最新の履歴を取り出す
+        const prevState = undoStack.pop();
+        
+        // 状態を復元
+        fieldPositions = JSON.parse(prevState);
+        
+        // 画面とUIを更新
+        selectedFieldId = null;
+        selectedFieldIds = [];
+        drawCanvasWithBoxes();
+        updateAllUnassignedSelectors();
+        updateValueInputForm();
+        if (typeof updateFloatingControls === 'function') updateFloatingControls();
+    }
+
     function drawCanvasWithBoxes() {
         if (!pdfImage) return;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -748,6 +939,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (selectedFieldForPlacement && currentMode === 'placement') {
             drawFloatingBox(currentMouseX, currentMouseY, selectedFieldForPlacement);
+        }
+
+        if (isSelecting) {
+            ctx.save();
+            ctx.strokeStyle = "#00a8ff"; // 鮮やかな青
+            ctx.lineWidth = 1;
+            ctx.fillStyle = "rgba(0, 168, 255, 0.2)"; // 半透明の青
+            
+            ctx.beginPath();
+            ctx.rect(selectionRect.x, selectionRect.y, selectionRect.width, selectionRect.height);
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
         }
     }
 
@@ -1470,6 +1674,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function duplicateField(direction) {
         if (!selectedFieldId || !fieldPositions[selectedFieldId]) return;
+        saveStateToHistory();
         const original = fieldPositions[selectedFieldId];
         const newId = `field_${Date.now()}`;
         const newField = JSON.parse(JSON.stringify(original));
@@ -1554,4 +1759,210 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         return lines;
     }
+
+
+// ====================================================================
+    // ★GitHub連携設定 (ファイルが増えました)
+    // ====================================================================
+    // あなたのリポジトリURLに合わせて書き換えてください
+    const REPO_ROOT = 'https://raw.githubusercontent.com/koba22040/pdf-sistem-practice/main';
+    
+    const GITHUB_FONT_URL    = `${REPO_ROOT}/BIZUDGothic-Regular.ttf`;
+    const GITHUB_SETUP_JS    = `${REPO_ROOT}/setup.js`;   // ★追加: フォーム作成用
+    const GITHUB_MAIN_JS     = `${REPO_ROOT}/main.js`;    // ★修正: PDF生成のみ
+    const GITHUB_PDFAPP_JS   = `${REPO_ROOT}/PDFApp.js`;
+
+    // ====================================================================
+    // 1. テンプレート保存 & ZIP作成 (4ファイルを同梱)
+    // ====================================================================
+    const saveTemplateBtnB = document.getElementById("saveTemplateBtn-B");
+
+    async function handleSaveTemplate() {
+        if (typeof fieldPositions === 'undefined' || !fieldPositions || Object.keys(fieldPositions).length === 0) {
+            if(!confirm("入力枠がひとつもありませんが、保存しますか？")) return;
+        }
+
+        const templateName = prompt("保存するファイル名を入力してください:", (typeof selectedFile !== 'undefined' && selectedFile) ? selectedFile.name.replace('.pdf', '') : "template");
+        if (!templateName) return;
+
+        const originalText = saveTemplateBtnB.innerText;
+        saveTemplateBtnB.innerText = "⏳ データを取得中...";
+        saveTemplateBtnB.disabled = true;
+
+        try {
+            // JSON作成
+            const positionsToSave = JSON.parse(JSON.stringify(fieldPositions));
+            for (const id in positionsToSave) {
+                const pos = positionsToSave[id];
+                ['x', 'y', 'width', 'height', 'size'].forEach(k => {
+                    if(pos[k]) pos[k] = Math.round(pos[k] * 100) / 100;
+                });
+            }
+            const templateData = { name: templateName, questions: (typeof questions !== 'undefined' ? questions : []), fieldPositions: positionsToSave };
+            const jsonStr = JSON.stringify(templateData, null, 2);
+
+            // --- B. フォントのみダウンロード ---
+            // (PDFファイルは手元にあるのでダウンロード不要、GASコードも不要)
+            const fontRes = await fetch(GITHUB_FONT_URL);
+            if (!fontRes.ok) throw new Error("フォントファイルの取得に失敗しました");
+            const fontBlob = await fontRes.blob();
+
+            // ZIP圧縮
+            const zip = new JSZip();
+            zip.file(`${templateName}.json`, jsonStr);
+
+            // 2. 元のPDFファイル (アップロードされたFileオブジェクトをそのまま入れる)
+            if (typeof selectedFile !== 'undefined' && selectedFile) {
+                zip.file(selectedFile.name, selectedFile);
+            } else {
+                alert("元のPDFファイルが見つかりません。");
+            }
+            const fontFileName = GITHUB_FONT_URL.split('/').pop() || "font.ttf";
+            zip.file(fontFileName, fontBlob);
+            
+            // // GASファイル群
+            // zip.file("setup.gs", setupText); // 拡張子を.gsにしてあげると親切
+            // zip.file("main.gs", mainText);
+            // zip.file("PDFApp.gs", pdfAppText);
+
+            // ダウンロード
+            const content = await zip.generateAsync({ type: "blob" });
+            const url = URL.createObjectURL(content);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `${templateName}_kit.zip`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            // ウィザードオープン
+            setTimeout(() => {
+                const modal = document.getElementById('setupModal');
+                if (modal) modal.style.display = 'block';
+                switchStep("1");
+            }, 1000);
+
+        } catch (err) {
+            console.error(err);
+            alert("保存中にエラーが発生しました。\n" + err.message);
+        } finally {
+            saveTemplateBtnB.innerText = originalText;
+            saveTemplateBtnB.disabled = false;
+        }
+    }
+
+    if (saveTemplateBtnB) saveTemplateBtnB.onclick = handleSaveTemplate;
+
+
+    // ====================================================================
+    // 2. セットアップウィザード制御
+    // ====================================================================
+    const btnCloseSetup = document.getElementById('closeSetupModal');
+    if (btnCloseSetup) {
+        btnCloseSetup.addEventListener('click', () => {
+            document.getElementById('setupModal').style.display = 'none';
+        });
+    }
+
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.next-step-btn, .prev-step-btn');
+        if (!btn) return;
+        const nextStep = btn.dataset.next || btn.dataset.prev;
+        if (nextStep === "3") generateCodesFromGitHub();
+        switchStep(nextStep);
+    });
+
+    function switchStep(stepNum) {
+        // 全ステップから active-step クラスを外す
+        document.querySelectorAll('.wizard-step').forEach(el => {
+            el.classList.remove('active-step'); 
+            el.style.display = 'none'; // 念のため
+        });
+        // 指定ステップに active-step をつける
+        const targetStep = document.getElementById(`step-${stepNum}`);
+        if (targetStep) {
+            targetStep.style.display = 'flex'; // CSS上書き用
+            targetStep.classList.add('active-step');
+        }
+        document.querySelectorAll('.step-indicator .step').forEach(el => {
+            el.classList.remove('active');
+            if (el.dataset.step === stepNum) el.classList.add('active');
+        });
+    }
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.classList.contains('tab-btn')) return;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        const targetId = `code-${e.target.dataset.tab}`;
+        document.querySelectorAll('.code-block').forEach(b => b.classList.remove('active'));
+        const targetBlock = document.getElementById(targetId);
+        if(targetBlock) targetBlock.classList.add('active');
+    });
+
+    function extractIdFromUrl(url) {
+        if (!url) return '';
+        try {
+            const match = url.match(/[-\w]{25,}/);
+            return match ? match[0] : url;
+        } catch (e) { return url; }
+    }
+
+    // ★コード生成（setup.js と main.js の両方のIDを置換）
+    async function generateCodesFromGitHub() {
+        const setupArea = document.getElementById('setup-code-textarea');
+        const mainArea = document.getElementById('main-code-textarea');
+        const pdfAppArea = document.getElementById('pdfapp-code-textarea');
+        
+        [setupArea, mainArea, pdfAppArea].forEach(el => {
+            if(el) el.value = "// GitHubから取得中...";
+        });
+
+        // ID抽出
+        const pdfId = extractIdFromUrl(document.getElementById('wiz-pdf-url').value.trim());
+        const fontId = extractIdFromUrl(document.getElementById('wiz-font-url').value.trim());
+        const configId = extractIdFromUrl(document.getElementById('wiz-config-url').value.trim());
+        const folderId = extractIdFromUrl(document.getElementById('wiz-folder-url').value.trim());
+
+        try {
+            // ダウンロード
+            const [setupRes, mainRes, pdfAppRes] = await Promise.all([
+                fetch(GITHUB_SETUP_JS),
+                fetch(GITHUB_MAIN_JS),
+                fetch(GITHUB_PDFAPP_JS)
+            ]);
+
+            let setupCode = await setupRes.text();
+            let mainCode = await mainRes.text();
+            const pdfAppCode = await pdfAppRes.text();
+
+            // === 置換処理 (共通のID置換ロジック) ===
+            // 必要なIDだけが各ファイルに含まれているはずなので、全部置換を試みてOK
+            const replaceIds = (code) => {
+                code = code.replace(/const CONFIG_FILE_ID\s*=\s*['"].*?['"];/, `const CONFIG_FILE_ID = '${configId}';`);
+                code = code.replace(/const PDF_FILE_ID\s*=\s*['"].*?['"];/,    `const PDF_FILE_ID    = '${pdfId}';`);
+                code = code.replace(/const SANS_FONT_FILE_ID\s*=\s*['"].*?['"];/, `const SANS_FONT_FILE_ID = '${fontId}';`);
+                code = code.replace(/const SAVE_FOLDER_ID\s*=\s*['"].*?['"];/, `const SAVE_FOLDER_ID = '${folderId}';`);
+                return code;
+            };
+
+            if(setupArea) setupArea.value = replaceIds(setupCode);
+            if(mainArea) mainArea.value = replaceIds(mainCode);
+            if(pdfAppArea) pdfAppArea.value = pdfAppCode;
+
+        } catch (err) {
+            console.error(err);
+            if(mainArea) mainArea.value = `// エラー:\n// ${err.message}`;
+        }
+    }
+
+    window.copyCode = function(id) {
+        const el = document.getElementById(id);
+        if(el) { el.select(); document.execCommand('copy'); alert("コピーしました！"); }
+    };
+
+
+
+
 });

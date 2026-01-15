@@ -7,26 +7,60 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 </head>
 <body>
-    <!-- （テンプレート作成画面） -->
     <div id="screen-B">
         <div class="header-bar">
              <div class="toolbar">
-                <button id="toolbar-text-btn" class="toolbar-btn">テキスト配置</button>
+                <button id="toolbar-text-btn" class="toolbar-btn tooltip" 
+                    data-tooltip="【テキスト配置】&#10;氏名や住所など、1行の文字を入力する枠を作成します。&#10;自動でフォントサイズが調整されます。">
+                    テキスト配置
+                </button>
+
                 <div class="dropdown">
-                    <button id="toolbar-choice-btn" class="toolbar-btn">選択肢を配置 ▼</button>
+                    <button id="toolbar-choice-btn" class="toolbar-btn tooltip"
+                        data-tooltip="【選択肢の配置】&#10;丸囲みやチェックマークなど、&#10;クリックで選択する項目を作成します。">
+                        選択肢を配置 ▼
+                    </button>
                     <div id="choice-dropdown" class="dropdown-content">
-                        <a href="#" data-choice-type="circle">丸</a>
-                        <a href="#" data-choice-type="check">チェック</a>
+                        <a href="#" data-choice-type="circle">丸 (○)</a>
+                        <a href="#" data-choice-type="check">チェック (✓)</a>
                     </div>
                 </div>
-                <button id="toolbar-textarea-btn">文章欄</button>
-                <button id="toolbar-autofill-btn" class="toolbar-btn" title="他の項目から自動入力">自動判定</button>
-                <button id="toolbar-phone-group-btn" class="toolbar-btn" title="電話番号（自動分割）">電話番号</button>
-                <button id="toolbar-duplicate-group-btn" class="toolbar-btn" title="一度の入力で複数箇所に同じ値を反映">共通項目</button>
-                <!-- <button class="toolbar-btn" disabled>表ツール(開発中)</button> -->
-                <button id="toolbar-date-group-btn" class="toolbar-btn">日付グループ化</button>
-                <button id="toolbar-charsplit-group-btn" class="toolbar-btn">文字分割グループ化</button>
+
+                <button id="toolbar-textarea-btn" class="toolbar-btn tooltip"
+                    data-tooltip="【文章欄】&#10;志望動機や備考欄など、&#10;複数行の長い文章を入力する枠を作成します。">
+                    文章欄
+                </button>
+
+
+                <button id="toolbar-autofill-btn" class="toolbar-btn tooltip" 
+                    data-tooltip="【自動判定】&#10;「学籍番号の先頭が1なら工学部」のように、&#10;他の項目の値によって自動入力するルールを作ります。">
+                    自動判定
+                </button>
+
+                <button id="toolbar-phone-group-btn" class="toolbar-btn tooltip" 
+                    data-tooltip="【電話番号】&#10;「090-1234-5678」のような番号を&#10;3つの枠（090, 1234, 5678）に自動で分割して入力させます。">
+                    電話番号
+                </button>
+
+                <button id="toolbar-duplicate-group-btn" class="toolbar-btn tooltip" 
+                    data-tooltip="【共通項目】&#10;「氏名」が複数箇所にある場合などに使います。&#10;一度の入力で全ての枠に同じ値を反映させます。">
+                    共通項目
+                </button>
+
+                <button id="toolbar-date-group-btn" class="toolbar-btn tooltip"
+                    data-tooltip="【日付グループ】&#10;年・月・日などの枠をグループ化します。&#10;カレンダーから日付を選ぶだけで全枠に自動入力されます。">
+                    日付グループ化
+                </button>
+
+                <button id="toolbar-charsplit-group-btn" class="toolbar-btn tooltip"
+                    data-tooltip="【文字分割】&#10;「フリガナ」などのマス目入力に使います。&#10;入力された文字を1文字ずつ各マスに割り振ります。">
+                    文字分割グループ化
+                </button>
              </div>
+             <button id="saveTemplateBtn-B" class="save-header-btn tooltip" 
+            data-tooltip="【保存】&#10;現在の配置設定をJSONファイルとして&#10;パソコンにダウンロードします。">
+            テンプレート保存
+         </button>
         </div>
        
         <div id="floating-controls" class="floating-controls" style="display: none;">
@@ -41,7 +75,6 @@
                 <option value="24">24pt</option>
             </select>
         </div>
-        <!-- 複製用矢印 -->
         <div id="quick-duplicate-controls" class="quick-duplicate-controls" style="display: none;">
             <button class="dup-btn dup-top" data-dir="top">↑</button>
             <button class="dup-btn dup-right" data-dir="right">→</button>
@@ -59,13 +92,12 @@
                 </div>
                 <div id="placementContainer-B">
                     <div class="control-group" id="questionBuilder">
-                        <h3>2. 質問の作成</h3>
+                        <h3>質問の作成</h3>
                         <div id="questions-list">
-                            <!-- 質問ブロックがここに追加されます -->
-                        </div>
+                            </div>
                         <button id="add-question-btn" style="width:100%">＋ 質問を追加</button>
                     </div>
-                    <button id="saveTemplateBtn-B" class="mode-switch-btn" style="background-color: #17a2b8;">このテンプレートを保存</button>
+                
                     <input type="file" id="loadTemplateInput" accept=".json" style="display: none;">
                     <button id="loadTemplateBtn" class="mode-switch-btn" style="background-color: #ff9800;">テンプレート読込</button>
                     <button id="goToInputModeBtn-B" class="mode-switch-btn">入力プレビューへ進む →</button>
@@ -93,44 +125,192 @@
             </div>
         </div>
     </div>
+    
     <div id="groupingModal" class="modal">
       <div class="modal-content">
           <span class="close-button">&times;</span>
           <h3>フィールドのグループ化</h3>
-          
           <div class="form-group">
               <label for="groupNameInput">グループ名 (例: startTime, address)</label>
               <input type="text" id="groupNameInput" placeholder="startTime">
           </div>
           <hr>
-          <div id="groupFieldsList">
-              </div>
+          <div id="groupFieldsList"></div>
           <button id="saveGroupBtn">グループを保存</button>
       </div>
-  </div>
-  <div id="autoFillModal" class="modal">
-    <div class="modal-content" style="max-width: 500px;">
-        <span class="close-button autofill-close">&times;</span>
-        <h3>自動入力ルールの設定</h3>
-        <p>「<span id="af-target-name" style="font-weight:bold;"></span>」の値を、他の項目に基づいて自動決定します。</p>
-        
-        <div class="form-group">
-            <label>判断基準にする項目（ソース）:</label>
-            <select id="af-source-select" style="width:100%; padding:8px;"></select>
+    </div>
+    <div id="autoFillModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <span class="close-button autofill-close">&times;</span>
+            <h3>自動入力ルールの設定</h3>
+            <p>「<span id="af-target-name" style="font-weight:bold;"></span>」の値を、他の項目に基づいて自動決定します。</p>
+            <div class="form-group">
+                <label>判断基準にする項目（ソース）:</label>
+                <select id="af-source-select" style="width:100%; padding:8px;"></select>
+            </div>
+            <div class="form-group">
+                <label>判定ルール（前方一致）:</label>
+                <div id="af-rules-container" style="max-height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; margin-bottom: 10px;"></div>
+                <button id="af-add-rule-btn" style="font-size: 12px;">＋ ルールを追加</button>
+            </div>
+            <div style="text-align: right; margin-top: 20px;">
+                <button id="af-save-btn" class="primary-btn">設定を保存</button>
+            </div>
         </div>
+    </div>
+    <div id="setupModal" class="modal">
+    <div class="modal-content wizard-container">
+    <span class="close-button" id="closeSetupModal">&times;</span>
+    
+    <div class="wizard-header">
+        <h2>Googleフォーム連携セットアップ</h2>
+        <div class="step-indicator">
+            <span class="step active" data-step="1">1. 準備</span><span class="line"></span>
+            <span class="step" data-step="2">2. ID</span><span class="line"></span>
+            <span class="step" data-step="3">3. 作成</span><span class="line"></span>
+            <span class="step" data-step="4">4. 導入</span><span class="line"></span>
+            <span class="step" data-step="5">5. 完了</span>
+        </div>
+    </div>
 
-        <div class="form-group">
-            <label>判定ルール（前方一致）:</label>
-            <div id="af-rules-container" style="max-height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; margin-bottom: 10px;">
+    <div class="wizard-step active-step" id="step-1" style="display:flex;">
+        <div class="step-scroll-content">
+            <h3>Googleドライブにファイルを配置</h3>
+            <p>ダウンロードしたZIPを解凍すると、以下の3つのファイルが入っています。<br>これらをGoogleドライブの同じフォルダにアップロードしてください。</p>
+            <div style="background: #eef; padding: 15px; border-radius: 5px; margin: 15px 0; text-align: center;">
+                <a href="https://drive.google.com/" target="_blank" style="font-weight: bold; color: #007bff; text-decoration: none; font-size: 1.1rem;">📂 Googleドライブを開く (別タブ)</a>
+            </div>
+            <ul class="file-list">
+                <li>📄 <strong>背景PDF</strong> (.pdf)</li>
+                <li>⚙️ <strong>設定JSON</strong> (.json)</li>
+                <li>🔤 <strong>フォントファイル</strong> (.ttf)</li>
+            </ul>
+        </div>
+        <div class="wizard-buttons">
+            <button class="secondary-btn" onclick="document.getElementById('setupModal').style.display='none'">あとで</button>
+            <button class="primary-btn next-step-btn" data-next="2">次へ進む</button>
+        </div>
+    </div>
+
+    <div class="wizard-step" id="step-2">
+        <div class="step-scroll-content">
+            <h3>共有リンクを貼り付けてください</h3>
+            <p>アップロードした各ファイルを右クリックし、<strong>「共有」→「リンクをコピー」</strong>して貼り付けてください。</p>
+            <div class="form-group"><label>📄 PDFファイルのリンク</label><input type="text" id="wiz-pdf-url"></div>
+            <div class="form-group"><label>🔤 フォントファイルのリンク</label><input type="text" id="wiz-font-url"></div>
+            <div class="form-group"><label>⚙️ 設定JSONのリンク</label><input type="text" id="wiz-config-url"></div>
+            <div class="form-group"><label>📂 完成PDF保存フォルダのリンク</label><input type="text" id="wiz-folder-url"></div>
+        </div>
+        <div class="wizard-buttons">
+            <button class="secondary-btn prev-step-btn" data-prev="1">戻る</button>
+            <button class="primary-btn next-step-btn" data-next="3">コード生成</button>
+        </div>
+    </div>
+
+    <div class="wizard-step" id="step-3">
+        <div class="step-scroll-content">
+            <h3>Googleフォームの自動作成</h3>
+            <div style="text-align:center; margin: 10px 0;">
+                <a href="https://script.google.com/home/start" target="_blank" class="primary-btn" style="background:#ea4335; text-decoration:none;">🚀 Google Apps Script を開く</a>
+            </div>
+            <p>「新しいプロジェクト」を作成し、以下のコードを貼り付けてください。</p>
+            <div class="code-area">
+                <div id="code-setup" class="code-block active">
+                    <textarea id="setup-code-textarea" readonly>読み込み中...</textarea>
+                    <button class="copy-btn" onclick="copyCode('setup-code-textarea')">📋 コピー</button>
                 </div>
-            <button id="af-add-rule-btn" style="font-size: 12px;">＋ ルールを追加</button>
+            </div>
+            
+            <div class="step-list" style="margin-top:20px;">
+                <div class="step-item">
+                    <span class="num">1</span>
+                    <div class="step-content"><p><code>setUpForm</code> 関数を選んで「実行」してください。</p></div>
+                </div>
+                <div class="step-item">
+                    <span class="num">2</span>
+                    <div class="step-content">
+                        <p><strong>権限の確認画面</strong>が出たら、以下のように進んで許可してください。</p>
+                        <div style="background:#fff; border:1px solid #ddd; padding:10px; border-radius:5px; font-size:0.9rem;">
+                            「Review permissions(権限を確認)」<br>
+                            → 自分のアカウントを選択<br>
+                            → 左下の「Advanced(詳細)」をクリック <br>
+                            → 「Go to ...(安全ではないページに移動)」をクリック<br>
+                            → 「Allow(許可)」
+                        </div>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <span class="num">3</span>
+                    <div class="step-content">
+                        <p>実行ログに出た <strong>「📝 編集用URL」</strong> をクリックしてフォームを開きます。</p>
+                    </div>
+                </div>
+            </div>
         </div>
+        <div class="wizard-buttons">
+            <button class="secondary-btn prev-step-btn" data-prev="2">戻る</button>
+            <button class="primary-btn next-step-btn" data-next="4">フォームを開いたので次へ</button>
+        </div>
+    </div>
 
-        <div style="text-align: right; margin-top: 20px;">
-            <button id="af-save-btn" class="primary-btn">設定を保存</button>
+    <div class="wizard-step" id="step-4">
+        <div class="step-scroll-content">
+            <h3>本番用コードのインストール</h3>
+            <p>作成されたフォームのメニューから<strong>「スクリプトエディタ」</strong>を開き、以下の2つをコピペしてください。</p>
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="main">main.gs</button>
+                <button class="tab-btn" data-tab="pdfapp">PDFApp.gs</button>
+            </div>
+            <div class="code-area">
+                <div id="code-main" class="code-block active">
+                    <textarea id="main-code-textarea" readonly>読み込み中...</textarea>
+                    <button class="copy-btn" onclick="copyCode('main-code-textarea')">📋 コピー</button>
+                </div>
+                <div id="code-pdfapp" class="code-block">
+                    <textarea id="pdfapp-code-textarea" readonly>読み込み中...</textarea>
+                    <button class="copy-btn" onclick="copyCode('pdfapp-code-textarea')">📋 コピー</button>
+                </div>
+            </div>
+        </div>
+        <div class="wizard-buttons">
+            <button class="secondary-btn prev-step-btn" data-prev="3">戻る</button>
+            <button class="primary-btn next-step-btn" data-next="5">次へ進む</button>
+        </div>
+    </div>
+
+    <div class="wizard-step" id="step-5">
+        <div class="step-scroll-content">
+            <h3>仕上げ：トリガー設定</h3>
+            <div class="step-list">
+                <div class="step-item">
+                    <span class="num">1</span>
+                    <div class="step-content">
+                        <p>時計アイコン（トリガー）から以下のように設定して保存します。</p>
+                        <img src="https://gyazo.com/72cdc2962fb8d6e226d8d4084f48f5c1/raw" alt="トリガー設定" class="guide-img">
+                    </div>
+                </div>
+                <div class="step-item">
+                    <span class="num">2</span>
+                    <div class="step-content">
+                        <p><code>onFormSubmit</code> を <strong>「フォーム送信時」</strong> に設定します。</p>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <span class="num">3</span>
+                    <div class="step-content">
+                        <p>再度、権限確認が出たら同じ手順で許可してください。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="wizard-buttons">
+            <button class="secondary-btn prev-step-btn" data-prev="4">戻る</button>
+            <button class="primary-btn" onclick="document.getElementById('setupModal').style.display='none'">完了して閉じる</button>
         </div>
     </div>
 </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ja.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
@@ -139,4 +319,3 @@
     <script src="script.js"></script>
 </body>
 </html>
-
