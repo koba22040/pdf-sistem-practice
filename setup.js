@@ -1,5 +1,7 @@
 // === 設定 ===
+//const CONFIG_FILE_ID = '1qy4w5U0UiQ9Qni-crwi2NqxOpVZ29tR9'; 
 const CONFIG_FILE_ID = ''; 
+
 
 function setUpForm() {
   if (!CONFIG_FILE_ID) throw new Error("IDが設定されていません");
@@ -9,30 +11,30 @@ function setUpForm() {
   const json = JSON.parse(file.getBlob().getDataAsString());
 
   // フォーム作成
-  const form = FormApp.create(json.name || "方書登録申出書フォーム");
+  const form = FormApp.create(json.name || "フォーム");
   form.setCollectEmail(true); 
 
   // --- 準備: 処理済みフィールドの管理 ---
-  // 質問グループ(questions)で使われているfieldIdを記録しておき、後で重複作成しないようにする
   const usedFieldIds = new Set();
   if (json.questions) {
     json.questions.forEach(q => {
       if (q.choices) {
         q.choices.forEach(c => {
           if (c.fieldId) usedFieldIds.add(c.fieldId);
-          if (c.textFieldId) usedFieldIds.add(c.textFieldId); // 「その他」のテキスト入力欄も除外
+          if (c.textFieldId) usedFieldIds.add(c.textFieldId);
         });
       }
     });
   }
 
-  // 作成するフォーム項目のリスト（Y座標でソートするため一旦配列に入れる）
+  // 作成するフォーム項目のリスト
   let formItems = [];
 
+  // ==================================================
   // 1. グループ化された質問 (Radio, Checkbox) をリストに追加
+  // ==================================================
   if (json.questions) {
     json.questions.forEach(q => {
-      // この質問のY座標を特定（選択肢の最初のフィールドの位置を基準にする）
       let y = 0;
       if (q.choices && q.choices.length > 0) {
         const firstFieldId = q.choices[0].fieldId;
@@ -40,82 +42,115 @@ function setUpForm() {
           y = json.fieldPositions[firstFieldId].y;
         }
       }
-
       formItems.push({
-        type: 'question_group', // 独自タイプ: グループ質問
+        type: 'question_group',
         y: y,
         data: q
       });
     });
   }
 
+  // ==================================================
+  // ★追加機能: 日時ソース (開始時刻・終了時刻) の自動検出
+  // ==================================================
+  const dateTimeSources = {}; // 例: { "開始時刻": { y: 500, hasTime: true } }
+
+  Object.keys(json.fieldPositions).forEach(key => {
+    const f = json.fieldPositions[key];
+    
+    // dataSourceTypeがdatetimeで、かつ「自動の日付(today-xxx)」ではないものを探す
+    if (f.dataSourceType === 'datetime' && f.dataSource && f.dataSource !== '日付') {
+      
+      // まだ登録されていなければ初期化
+      if (!dateTimeSources[f.dataSource]) {
+        dateTimeSources[f.dataSource] = { y: f.y, hasTime: false };
+      }
+
+      // Y座標は、そのグループの中で一番上のものを採用（フォームの並び順のため）
+      if (f.y < dateTimeSources[f.dataSource].y) {
+        dateTimeSources[f.dataSource].y = f.y;
+      }
+
+      // 「時」や「分」が含まれていれば、時刻付きの質問にするフラグを立てる
+      if (f.dataPart && (f.dataPart.includes('hour') || f.dataPart.includes('minute'))) {
+        dateTimeSources[f.dataSource].hasTime = true;
+      }
+    }
+  });
+
+  // 検出した日時ソースをフォーム項目リストに追加
+  Object.keys(dateTimeSources).forEach(sourceName => {
+    const info = dateTimeSources[sourceName];
+    formItems.push({
+      type: 'datetime_source', // 独自タイプ: 日時質問
+      label: sourceName,       // 質問タイトル（開始時刻、終了時刻など）
+      y: info.y,
+      hasTime: info.hasTime
+    });
+  });
+
+  // ==================================================
   // 2. 単独のフィールド (Text, TextArea) をリストに追加
-  const createdLabels = new Set(); // 重複ラベル（住所[1], 住所[2]...）をまとめる用
+  // ==================================================
+  const createdLabels = new Set(); 
 
   Object.keys(json.fieldPositions).forEach(key => {
     const f = json.fieldPositions[key];
 
     // 除外条件:
-    // A. すでにグループ質問で使われているフィールドならスキップ
-    if (usedFieldIds.has(key)) return;
+    if (usedFieldIds.has(key)) return; // 既にラジオボタン等で使った
+    if (f.label && f.label.includes('【自動】')) return; // 自動項目
+    if (f.dataSource === '日付') return; // 今日の日付
     
-    // B. 「自動」や計算フィールドならスキップ
-    if (f.label && f.label.includes('【自動】')) return;
-    if (f.dataSource === '日付') return; // 今日の日付など
+    // ★追加: 日時ソースとして検出されたものはテキストボックスを作らない
+    // (例: 「年」「月」などの個別の枠は作らず、「開始時刻」という1つの質問に任せる)
+    if (f.dataSourceType === 'datetime' && dateTimeSources[f.dataSource]) return;
 
-    // C. 住所や電話番号の分割フィールド (char-split, phone-split) の処理
-    // ラベルから [0], [1] などを除去してベース名を取得
+    // 住所や電話番号の分割統合
     let baseLabel = f.label.replace(/\[\d+\]/g, ''); 
-    
-    // すでに同じベース名の質問を作っていたらスキップ (例: 住所[0]を作ったら住所[1]は作らない)
     if (createdLabels.has(baseLabel)) return;
-    
     createdLabels.add(baseLabel);
 
     formItems.push({
-      type: 'single_field', // 独自タイプ: 単独フィールド
+      type: 'single_field',
       y: f.y,
-      label: baseLabel, // 整形したラベルを使用
+      label: baseLabel,
       originalType: f.type
     });
   });
 
-  // 3. Y座標順 (上から下) にソート
+  // ==================================================
+  // 3. Y座標順にソートしてフォーム生成
+  // ==================================================
   formItems.sort((a, b) => a.y - b.y);
 
-  // 4. 実際にフォームに追加
   formItems.forEach(item => {
     if (item.type === 'question_group') {
-      // --- ラジオボタン・チェックボックスの作成 ---
+      // --- ラジオボタン・チェックボックス ---
       const qData = item.data;
-      let formItem;
-      
-      if (qData.type === 'check') {
-        formItem = form.addCheckboxItem();
-      } else {
-        formItem = form.addMultipleChoiceItem();
-      }
-      
+      let formItem = (qData.type === 'check') ? form.addCheckboxItem() : form.addMultipleChoiceItem();
       formItem.setTitle(qData.title);
-      
-      // 選択肢のセット
-      const choices = qData.choices.map(c => c.name);
-      // 「その他」がある場合などは必要に応じて showOtherOption(true) を検討できますが、今回は単純化して選択肢として追加
-      formItem.setChoiceValues(choices);
+      formItem.setChoiceValues(qData.choices.map(c => c.name));
+
+    } else if (item.type === 'datetime_source') {
+      // --- ★日時質問（開始時刻・終了時刻） ---
+      let formItem;
+      if (item.hasTime) {
+        formItem = form.addDateTimeItem(); // 日付 ＋ 時刻
+      } else {
+        formItem = form.addDateItem();     // 日付のみ
+      }
+      formItem.setTitle(item.label);
+      formItem.setIncludesYear(true);      // 年を含める
 
     } else if (item.type === 'single_field') {
-      // --- テキストボックスの作成 ---
-      let formItem;
-      if (item.originalType === 'textarea') {
-        formItem = form.addParagraphTextItem();
-      } else {
-        formItem = form.addTextItem();
-      }
+      // --- テキストボックス ---
+      let formItem = (item.originalType === 'textarea') ? form.addParagraphTextItem() : form.addTextItem();
       formItem.setTitle(item.label);
     }
   });
 
-  console.log("✅ 完了！以下のURLを使用してください");
+  console.log("✅ 完了！");
   console.log("公開用URL: " + form.getPublishedUrl());
   console.log("編集用URL: " + form.getEditUrl());
 }
