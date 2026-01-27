@@ -2,7 +2,7 @@
 
 const PDF_FILE_ID    = '';//
 
-const SANS_FONT_FILE_ID   = '';   // ゴシック系（M PLUS 1p 等）
+const SANS_FONT_FILE_ID = '';   // ゴシック系（M PLUS 1p 等）
 
 //const SERIF_FONT_FILE_ID  = '';   // 明朝系（BIZ UD明朝 等）
 const CONFIG_FILE_ID = '';//
@@ -62,7 +62,7 @@ async function onFormSubmit(e) {
     // --- フォント登録 --- //
     pdfApp.registerFontMap({
       NotoSansJP: DriveApp.getFileById(SANS_FONT_FILE_ID).getBlob(),
-      NotoSerifJP: DriveApp.getFileById(SERIF_FONT_FILE_ID).getBlob(),
+      //NotoSerifJP: DriveApp.getFileById(SERIF_FONT_FILE_ID).getBlob(),
     });
 
     // PDF サイズ取得
