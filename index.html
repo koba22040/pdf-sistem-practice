@@ -10,6 +10,10 @@
     <div id="screen-B">
         <div class="header-bar">
              <div class="toolbar">
+                <button id="toolbar-undo-btn" class="toolbar-btn tooltip" 
+                    data-tooltip="【元に戻す】&#10;直前の操作を取り消します。(Ctrl+Z)">
+                    <span style="font-weight: 900; text-shadow: 0.5px 0 0 currentColor, -0.5px 0 0 currentColor;">↶</span>
+                </button>
                 <button id="toolbar-text-btn" class="toolbar-btn tooltip" 
                     data-tooltip="【テキスト配置】&#10;氏名や住所など、1行の文字を入力する枠を作成します。&#10;自動でフォントサイズが調整されます。">
                     テキスト配置
@@ -143,6 +147,22 @@
         <div class="modal-content" style="max-width: 500px;">
             <span class="close-button autofill-close">&times;</span>
             <h3>自動入力ルールの設定</h3>
+            
+            <div class="form-group" style="margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 15px; background: #f9f9f9; padding: 10px; border-radius: 4px;">
+                <label style="margin-bottom: 5px; display: block;">ルールセットの呼び出し・保存:</label>
+                <div style="display: flex; gap: 5px; margin-bottom: 8px;">
+                    <select id="af-preset-select" style="flex: 1; padding: 6px;">
+                        <option value="">-- 保存済みセットを選択 --</option>
+                    </select>
+                    <button id="af-load-preset-btn" style="padding: 6px 12px; font-size: 12px; background: #6c757d;">読込</button>
+                    <button id="af-delete-preset-btn" style="padding: 6px 12px; font-size: 12px; background: #dc3545;">削除</button>
+                </div>
+                <div style="display: flex; gap: 5px;">
+                    <input type="text" id="af-preset-name" placeholder="現在のルールに名前を付けて保存" style="flex: 1; padding: 6px;">
+                    <button id="af-save-preset-btn" style="padding: 6px 12px; font-size: 12px; background: #28a745;">保存</button>
+                </div>
+            </div>
+
             <p>「<span id="af-target-name" style="font-weight:bold;"></span>」の値を、他の項目に基づいて自動決定します。</p>
             <div class="form-group">
                 <label>判断基準にする項目（ソース）:</label>

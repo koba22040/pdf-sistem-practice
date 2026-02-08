@@ -1,10 +1,20 @@
-/* --- 全体のレイアウト --- */
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans CJK JP", "Yu Gothic", Meiryo, sans-serif;
-    background-color: #f4f7f9;
+    background-color: #f0f2f5; /* Light gray background */
     color: #333;
     margin: 0;
     padding: 0;
+}
+
+.controls-column h3 {
+    color: #333;
+    border-bottom: 2px solid #dee2e6;
+    padding-bottom: 10px;
+    margin-top: 30px;
+}
+
+#fileName-B, #status-B {
+    color: #666;
 }
 
 /* --- スタート画面のスタイル --- */
@@ -71,12 +81,17 @@ body {
     padding: 10px 40px;
     border-bottom: 1px solid #e0e0e0;
     display: flex;
-    /* justify-content: flex-end; */
     justify-content: space-between;
     align-items: center;
     min-height: 38px;
     position: relative;
     z-index: 1000;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+.header-bar:hover {
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    background-color: #fdfdfd;
 }
 .header-bar h1 {
     margin: 0;
@@ -84,39 +99,62 @@ body {
     border: none;
     font-size: 1.5em;
     color: #333;
+    font-weight: 700;
 }
 .back-btn {
     background-color: transparent;
     color: #007bff;
     border: 1px solid #007bff;
     font-weight: bold;
+    border-radius: 6px;
+    transition: all 0.2s;
 }
 .back-btn:hover {
     background-color: #e7f3ff;
+    transform: translateY(-1px);
+}
+.back-btn:active {
+    transform: translateY(1px);
 }
 
 /* --- ツールバーのスタイル --- */
 .toolbar {
     display: flex;
-    gap: 10px;
+    gap: 12px;
     align-items: center;
 }
 .toolbar-btn {
     background-color: #6c757d;
-    padding: 8px 16px;
+    padding: 8px 18px;
     font-size: 14px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+    color: white;
 }
-.toolbar-btn:hover {
+.toolbar-btn:hover:not(:disabled) {
     background-color: #5a6268;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+.toolbar-btn:active:not(:disabled) {
+    background-color: #4e555b;
+    transform: translateY(0px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 .toolbar-btn:disabled {
     background-color: #adb5bd;
     cursor: not-allowed;
+    opacity: 0.7;
+    transform: none;
+    box-shadow: none;
 }
 .toolbar-btn.active {
-    background-color: #ddd;
-    border: 2px solid #555;
+    background-color: #007bff;
+    color: white;
     font-weight: bold;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.2);
+    transform: none;
 }
 .dropdown {
     position: relative;
@@ -129,22 +167,42 @@ body {
 .dropdown-content {
     display: none;
     position: absolute;
-    background-color: #f9f9f9;
-    min-width: 160px;
-    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-    z-index: 1;
-    border-radius: 5px;
-    border: 1px solid #ddd;
+    background-color: #ffffff;
+    min-width: 180px;
+    box-shadow: 0px 8px 25px rgba(0,0,0,0.15);
+    z-index: 1001;
+    border-radius: 8px;
+    border: 1px solid #eee;
+    margin-top: 8px;
+    overflow: hidden;
 }
 .dropdown-content a {
-    color: black;
-    padding: 12px 16px;
+    color: #444;
+    padding: 12px 20px;
     text-decoration: none;
     display: block;
     font-size: 14px;
+    transition: all 0.2s;
 }
-.dropdown-content a:hover { background-color: #f1f1f1; }
-.dropdown-content.show { display: block; }
+.dropdown-content a:hover {
+    background-color: #f0f7ff;
+    color: #007bff;
+    padding-left: 24px;
+}
+.dropdown-content.show {
+    display: block;
+    animation: fadeInDown 0.2s ease-out;
+}
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
 
 
 /* --- 2カラムレイアウトのスタイル --- */
@@ -201,6 +259,7 @@ hr {
     margin-bottom: 25px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    color: #333;
 }
 
 /* --- フォーム要素のスタイル --- */
@@ -285,11 +344,13 @@ button:hover {
 }
 
 #pdfCanvas-B, #pdfCanvas-A {
-    border: 2px solid #ccc;
+    border: none;
     max-width: 100%;
     height: auto;
     background-color: white;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    display: block;
+    margin: 0 auto;
 }
 
 /* --- 質問ビルダーのスタイル --- */
@@ -351,25 +412,39 @@ button:hover {
 
 /* モーダル（ポップアップ）のスタイル */
 .modal {
-    display: none; /* 初期状態では非表示 */
+    display: none;
     position: fixed;
-    z-index: 1000;
+    z-index: 2000;
     left: 0;
     top: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0,0,0,0.5);
+    background-color: rgba(0,0,0,0.1); /* 背景を暗くしすぎない */
     overflow: auto;
 }
 .modal-content {
     background-color: #fefefe;
-    margin: 15% auto;
+    margin: 10vh auto;
     padding: 20px;
-    border: 1px solid #888;
+    border: 1px solid #ccc;
     width: 80%;
     max-width: 500px;
-    border-radius: 5px;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
 }
+
+/* 設定用モーダル（グループ化・自動判定）を左側に寄せる */
+#groupingModal .modal-content,
+#autoFillModal .modal-content {
+    position: fixed;
+    top: 80px;
+    left: 20px; /* 右から左へ変更 */
+    margin: 0;
+    width: 420px;
+    max-height: 85vh;
+    overflow-y: auto;
+}
+
 .close-button {
     color: #aaa;
     float: right;
@@ -381,11 +456,7 @@ button:hover {
 .close-button:focus {
     color: black;
 }
-/* グループ化モード中にボタンをアクティブに見せるスタイル */
-.toolbar button.active {
-    background-color: #d0e0ff;
-    border-style: inset;
-}
+/* グループ化モード中にボタンをアクティブに見せるスタイルは .toolbar-btn.active に統一 */
 
 .floating-controls {
     position: absolute;
@@ -527,67 +598,90 @@ button:hover {
     position: relative; /* 子要素の絶対配置の基準 */
 }
 
-/* ホバー時に表示される吹き出し本体 */
-.tooltip:hover::after {
-    content: attr(data-tooltip); /* HTMLのdata-tooltip属性の中身を表示 */
+/* 吹き出し本体と三角マークの共通設定（初期状態は非表示） */
+.tooltip::after,
+.tooltip::before {
     position: absolute;
-    top: 100%;      /* ボタンの下に表示 */
-    left: 50%;      /* 中央揃え */
-    transform: translateX(-50%);
-    margin-top: 8px; /* ボタンとの隙間 */
-    
-    background-color: #333; /* 黒背景 */
-    color: #fff;            /* 白文字 */
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 12px;
-    line-height: 1.5;
-    white-space: pre-wrap;  /* 改行コード(&#10;)を有効にする */
-    width: max-content;
-    max-width: 250px;       /* 最大幅 */
-    z-index: 1000;          /* 最前面に表示 */
-    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-    text-align: left;
-    pointer-events: none;   /* 吹き出し自体はクリックの邪魔をしない */
-}
-
-/* 吹き出しの上の「▲」三角マーク */
-.tooltip:hover::before {
-    content: "";
-    position: absolute;
-    top: 100%;
     left: 50%;
     transform: translateX(-50%);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
+    transition-delay: 0s; /* 消えるときは即座に */
+    pointer-events: none;
+    z-index: 1100;
+}
+
+/* ホバー時にディレイを置いて表示 */
+.tooltip:hover::after,
+.tooltip:hover::before {
+    opacity: 1;
+    visibility: visible;
+    transition-delay: 0.6s; /* 0.6秒待ってから表示 */
+}
+
+/* 吹き出し本体 */
+.tooltip::after {
+    content: attr(data-tooltip);
+    top: 100%;
+    margin-top: 12px;
+    background-color: #333;
+    color: #fff;
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    width: max-content;
+    max-width: 280px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    text-align: left;
+}
+
+/* 三角マーク */
+.tooltip::before {
+    content: "";
+    top: 100%;
+    margin-top: 0px;
     border: 6px solid transparent;
-    border-bottom-color: #333; /* 下向きの黒い三角 */
-    margin-top: -4px; /* 位置調整 */
-    z-index: 1000;
+    border-bottom-color: #333;
+}
+
+/* ホバー時に少し浮き上がるアニメーションを追加 */
+.tooltip:hover::after {
+    transform: translateX(-50%) translateY(4px);
+}
+.tooltip:hover::before {
+    transform: translateX(-50%) translateY(4px);
 }
 
 /* --- ヘッダー用保存ボタンのスタイル --- */
 .save-header-btn {
     background-color: #5295d0; 
     color: white;
-    padding: 8px 20px;
+    padding: 8px 22px;
     font-size: 14px;
     font-weight: bold;
     border: none;
-    border-radius: 4px;
+    border-radius: 6px;
     cursor: pointer;
-    box-shadow: 0 2px 4px rgba(214, 202, 202, 0.2);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     display: flex;
     align-items: center;
     gap: 8px; /* アイコンと文字の間隔 */
-    transition: background-color 0.2s, transform 0.1s;
+    transition: all 0.2s ease;
 }
 
 .save-header-btn:hover {
-    background-color: #212488; /* ホバー時は少し濃く */
-    transform: translateY(-1px);
+    background-color: #4184be; /* ホバー時は少し明るく */
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
 .save-header-btn:active {
-    transform: translateY(1px);
+    transform: translateY(0);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+    filter: brightness(0.9);
 }
 
 /* --- セットアップウィザード用スタイル --- */
@@ -659,6 +753,18 @@ button:hover {
     justify-content: space-between;
     flex-shrink: 0; /* 固定 */
     z-index: 10;
+}
+
+/* 要素の上に来た時（掴めるよ、という合図） */
+.cursor-grab {
+    cursor: grab !important;
+    cursor: -webkit-grab !important; /* 古いブラウザ用 */
+}
+
+/* 実際に掴んで動かしている時 */
+.cursor-grabbing {
+    cursor: grabbing !important;
+    cursor: -webkit-grabbing !important; /* 古いブラウザ用 */
 }
 
 /* その他パーツ (変更なし) */
