@@ -61,10 +61,8 @@ async function onFormSubmit(e) {
     pdfApp.setPDFBlob(pdfBlob);
     pdfApp.registerFontMap({
       NotoSansJP: DriveApp.getFileById(SANS_FONT_FILE_ID).getBlob(),
-<<<<<<< Updated upstream
       NotoSerifJP: DriveApp.getFileById(SERIF_FONT_FILE_ID).getBlob(),
-=======
->>>>>>> Stashed changes
+
     });
 
     const pdfData = await pdfApp.getPDFObjectFromBlob_(pdfBlob);

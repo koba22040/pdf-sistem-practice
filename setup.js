@@ -1,8 +1,6 @@
-<<<<<<< Updated upstream
-// === 設定 (自動で書き換わります) ===
-=======
+
+// === 設定 (自動で書き換わります) ==
 // === 設定 ===
->>>>>>> Stashed changes
 const CONFIG_FILE_ID = ''; 
 
 /**

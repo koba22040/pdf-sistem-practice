@@ -161,7 +161,7 @@ document.addEventListener("DOMContentLoaded", () => {
     toolbarChoiceBtn.addEventListener('click', (event) => { event.stopPropagation(); choiceDropdown.classList.toggle('show'); });
     if(toolbarTextareaBtn) toolbarTextareaBtn.addEventListener('click', () => startPlacingElement('textarea'));
     
-<<<<<<< Updated upstream
+//<<<<<<< Updated upstream
     choiceDropdown.addEventListener('click', (event) => {
         event.preventDefault();
         if (event.target.tagName === 'A') {
@@ -1766,19 +1766,17 @@ document.addEventListener("DOMContentLoaded", () => {
     // ★GitHub連携設定 (ファイルが増えました)
     // ====================================================================
     // あなたのリポジトリURLに合わせて書き換えてください
-    const REPO_ROOT = 'https://raw.githubusercontent.com/koba22040/pdf-sistem-practice/main';
+    const REPO_ROOT = 'https://raw.githubusercontent.com/ogurilab/pdf-system/main';
     
     const GITHUB_FONT_URL    = `${REPO_ROOT}/BIZUDGothic-Regular.ttf`;
     const GITHUB_SETUP_JS    = `${REPO_ROOT}/setup.js`;   // ★追加: フォーム作成用
     const GITHUB_MAIN_JS     = `${REPO_ROOT}/main.js`;    // ★修正: PDF生成のみ
-=======
     // --- セットアップウィザード関連のロジック (script.jsに残す) ---
     //const REPO_ROOT = 'https://raw.githubusercontent.com/koba22040/pdf-sistem-practice/main';
     //const REPO_ROOT = 'https://raw.githubusercontent.com/koba22040/pdf-sistem-practice/cli';
-    const REPO_ROOT = 'https://raw.githubusercontent.com/ogurilab/pdf-system/main';
-    const GITHUB_SETUP_JS    = `${REPO_ROOT}/setup.js`;
-    const GITHUB_MAIN_JS     = `${REPO_ROOT}/main.js`;
->>>>>>> Stashed changes
+    //const REPO_ROOT = 'https://raw.githubusercontent.com/ogurilab/pdf-system/main';
+    //const GITHUB_SETUP_JS    = `${REPO_ROOT}/setup.js`;
+    //const GITHUB_MAIN_JS     = `${REPO_ROOT}/main.js`;
     const GITHUB_PDFAPP_JS   = `${REPO_ROOT}/PDFApp.js`;
 
     // ====================================================================
